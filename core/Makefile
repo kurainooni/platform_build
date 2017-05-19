@@ -20,7 +20,7 @@ is_tests_build := $(filter tests,$(MAKECMDGOALS))
 # src:dest pair is the first one to match the same dest"
 #$(1): the src:dest pair
 define check-product-copy-files
-$(if $(filter %.apk, $(1)),$(error \
+$(if $(filter %.apk, $(1)),$(info \
     Prebuilt apk found in PRODUCT_COPY_FILES: $(1), use BUILD_PREBUILT instead!))
 endef
 unique_product_copy_files_destinations :=
@@ -90,7 +90,7 @@ endif
 # Both of these tags will be removed and replaced with "release-keys"
 # when the target-files is signed in a post-build step.
 ifeq ($(DEFAULT_SYSTEM_DEV_CERTIFICATE),build/target/product/security/testkey)
-BUILD_VERSION_TAGS += test-keys
+BUILD_VERSION_TAGS += release-keys
 else
 BUILD_VERSION_TAGS += dev-keys
 endif
@@ -417,6 +417,16 @@ INSTALLED_BOOTIMAGE_TARGET := $(INSTALLED_RAMDISK_TARGET)
 endif
 
 # -----------------------------------------------------------------
+# the rk loader bin
+INSTALLED_LOADER_MISC_TARGET := $(TARGET_DEVICE_DIR)/loader/misc_loadercmd.img
+INSTALLED_LOADER_TARGET := $(strip $(wildcard $(TARGET_DEVICE_DIR)/loader/RK*xxLoader*.bin))
+INSTALLED_NEW_LOADER_TARGET := $(PRODUCT_OUT)/RKLoader_new.bin
+
+# -----------------------------------------------------------------
+# the parameter image 
+INSTALLED_PARAMETER_TARGET := $(strip $(wildcard $(TARGET_DEVICE_DIR)/parameter/parameter*))
+
+# -----------------------------------------------------------------
 # NOTICE files
 #
 # We are required to publish the licenses for all code under BSD, GPL and
@@ -581,6 +591,7 @@ ifeq (,$(filter true, $(TARGET_NO_KERNEL) $(TARGET_NO_RECOVERY) $(BUILD_TINY_AND
 INSTALLED_RECOVERYIMAGE_TARGET := $(PRODUCT_OUT)/recovery.img
 
 recovery_initrc := $(call include-path-for, recovery)/etc/init.rc
+recovery_initrc_private := $(TARGET_DEVICE_DIR)/recovery/etc/init.rc
 recovery_kernel := $(INSTALLED_KERNEL_TARGET) # same as a non-recovery system
 recovery_ramdisk := $(PRODUCT_OUT)/ramdisk-recovery.img
 recovery_build_prop := $(INSTALLED_BUILD_PROP_TARGET)
@@ -654,6 +665,7 @@ $(INSTALLED_RECOVERYIMAGE_TARGET): $(MKBOOTFS) $(MKBOOTIMG) $(MINIGZIP) \
 	rm $(TARGET_RECOVERY_ROOT_OUT)/init*.rc
 	echo Modifying ramdisk contents...
 	cp -f $(recovery_initrc) $(TARGET_RECOVERY_ROOT_OUT)/
+	cp -f $(recovery_initrc_private) $(TARGET_RECOVERY_ROOT_OUT)/
 	cp -f $(recovery_binary) $(TARGET_RECOVERY_ROOT_OUT)/sbin/
 	cp -rf $(recovery_resources_common) $(TARGET_RECOVERY_ROOT_OUT)/
 	$(foreach item,$(recovery_resources_private), \
@@ -980,6 +992,8 @@ DISTTOOLS :=  $(HOST_OUT_EXECUTABLES)/minigzip \
 	  $(HOST_OUT_EXECUTABLES)/zipalign \
 	  $(HOST_OUT_EXECUTABLES)/bsdiff \
 	  $(HOST_OUT_EXECUTABLES)/imgdiff \
+	  $(HOST_OUT_EXECUTABLES)/remkloader \
+	  $(HOST_OUT_EXECUTABLES)/mkparameter \
 	  $(HOST_OUT_JAVA_LIBRARIES)/dumpkey.jar \
 	  $(HOST_OUT_JAVA_LIBRARIES)/signapk.jar \
 	  $(HOST_OUT_EXECUTABLES)/mkuserimg.sh \
@@ -1040,6 +1054,8 @@ endif
 $(BUILT_TARGET_FILES_PACKAGE): \
 		$(INSTALLED_BOOTIMAGE_TARGET) \
 		$(INSTALLED_RADIOIMAGE_TARGET) \
+		$(INSTALLED_LOADER_TARGET) \
+		$(INSTALLED_PARAMETER_TARGET) \
 		$(INSTALLED_RECOVERYIMAGE_TARGET) \
 		$(INSTALLED_SYSTEMIMAGE) \
 		$(INSTALLED_USERDATAIMAGE_TARGET) \
@@ -1095,6 +1111,22 @@ endif
 	$(hide) $(foreach t,$(INSTALLED_RADIOIMAGE_TARGET),\
 	            mkdir -p $(zip_root)/RADIO; \
 	            $(ACP) $(t) $(zip_root)/RADIO/$(notdir $(t));)
+ifeq ($(INSTALLED_LOADER_TARGET),)
+	$(info No RK Loader for TARGET_DEVICE $(TARGET_DEVICE) to otapackage)
+else
+	@# Contents of the rk loader bin
+	$(hide) mkdir -p $(zip_root)/LOADER
+	$(hide) $(HOST_OUT_EXECUTABLES)/remkloader '$(INSTALLED_LOADER_TARGET)' $(INSTALLED_NEW_LOADER_TARGET)
+	$(hide) cat $(INSTALLED_LOADER_MISC_TARGET) $(INSTALLED_NEW_LOADER_TARGET) > $(zip_root)/LOADER/RKLoader.img 
+endif
+ifeq ($(INSTALLED_PARAMETER_TARGET),)
+	$(info No parameter for TARGET_DEVICE $(TARGET_DEVICE) to otapackage)
+else
+	$(hide) rm -rf $(zip_root)/PARAMETER
+	$(hide) mkdir -p $(zip_root)/PARAMETER
+	$(hide) $(HOST_OUT_EXECUTABLES)/mkparameter '$(INSTALLED_PARAMETER_TARGET)' $(zip_root)/PARAMETER/parameter
+endif	
+
 	@# Contents of the system image
 	$(hide) $(call package_files-copy-root, \
 		$(SYSTEMIMAGE_SOURCE_DIR),$(zip_root)/SYSTEM)

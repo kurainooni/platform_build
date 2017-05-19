@@ -35,7 +35,6 @@ PRODUCT_PACKAGES := \
 	SoftKeyboard \
 	SystemUI \
 	Launcher2 \
-	Development \
 	DrmProvider \
 	Fallback \
 	Settings \

@@ -677,6 +677,11 @@ class DeviceSpecificParams(object):
     used to install the image for the device's baseband processor."""
     return self._DoCall("FullOTA_InstallEnd")
 
+  def Install_Parameter(self):
+    """Called at the start of OTA installation; typically this is
+    used to install the parameter for the device's baseband processor"""
+    return self._DoCall("Install_Parameter")
+
   def IncrementalOTA_Assertions(self):
     """Called after emitting the block of assertions at the top of an
     incremental OTA package.  Implementations can add whatever
@@ -837,7 +842,7 @@ def ComputeDifferences(diffs):
 
 # map recovery.fstab's fs_types to mount/format "partition types"
 PARTITION_TYPES = { "yaffs2": "MTD", "mtd": "MTD",
-                    "ext4": "EMMC", "emmc": "EMMC" }
+                    "ext4": "EMMC", "emmc": "EMMC", "ext3": "EMMC" }
 
 def GetTypeAndDevice(mount_point, info):
   fstab = info["fstab"]

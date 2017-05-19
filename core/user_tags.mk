@@ -24,7 +24,7 @@
 GRANDFATHERED_USER_MODULES :=
 
 -include vendor/google/user_tags.mk
-
+##$_modify_$_20120905: add framework2
 GRANDFATHERED_USER_MODULES += \
 	20-dns.conf \
 	95-configured \
@@ -123,6 +123,7 @@ GRANDFATHERED_USER_MODULES += \
 	exc_dump \
 	fastboot \
 	framework \
+	framework2 \
 	FrameworkCoreHostTests \
 	frameworks-core-util-lib \
 	fsck_msdos \
